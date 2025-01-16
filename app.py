@@ -3,7 +3,7 @@ import json
 from datetime import datetime
 import gradio as gr
 import torch
-import spaces
+# import spaces
 from PIL import Image, ImageDraw
 from qwen_vl_utils import process_vision_info
 from transformers import Qwen2VLForConditionalGeneration, AutoProcessor
@@ -19,32 +19,20 @@ _SYSTEM = "Based on the screenshot of the page, I give a text description and yo
 MIN_PIXELS = 256 * 28 * 28
 MAX_PIXELS = 1344 * 28 * 28
 
-# Specify the model repository and destination folder
-model_repo = "showlab/ShowUI-2B"
-destination_folder = "./showui-2b"
-
-# Ensure the destination folder exists
-os.makedirs(destination_folder, exist_ok=True)
-
-# List all files in the repository
-files = list_repo_files(repo_id=model_repo)
-
-# Download each file to the destination folder
-for file in files:
-    file_path = hf_hub_download(repo_id=model_repo, filename=file, local_dir=destination_folder)
-    print(f"Downloaded {file} to {file_path}")
 
 model = Qwen2VLForConditionalGeneration.from_pretrained(
-    "./showui-2b",
-    # "showlab/ShowUI-2B",
+    "./showlab/ShowUI-2B",
     torch_dtype=torch.bfloat16,
     device_map="cpu",
 )
 
 # Load the processor
-processor = AutoProcessor.from_pretrained("Qwen/Qwen2-VL-2B-Instruct", min_pixels=MIN_PIXELS, max_pixels=MAX_PIXELS)
+processor = AutoProcessor.from_pretrained(
+    "Qwen/Qwen2-VL-2B-Instruct", min_pixels=MIN_PIXELS, max_pixels=MAX_PIXELS)
 
 # Helper functions
+
+
 def draw_point(image_input, point=None, radius=5):
     """Draw a point on the image."""
     if isinstance(image_input, str):
@@ -54,20 +42,23 @@ def draw_point(image_input, point=None, radius=5):
 
     if point:
         x, y = point[0] * image.width, point[1] * image.height
-        ImageDraw.Draw(image).ellipse((x - radius, y - radius, x + radius, y + radius), fill='red')
+        ImageDraw.Draw(image).ellipse(
+            (x - radius, y - radius, x + radius, y + radius), fill='red')
     return image
+
 
 def array_to_image_path(image_array):
     """Save the uploaded image and return its path."""
     if image_array is None:
-        raise ValueError("No image provided. Please upload an image before submitting.")
+        raise ValueError(
+            "No image provided. Please upload an image before submitting.")
     img = Image.fromarray(np.uint8(image_array))
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"image_{timestamp}.png"
+    filename = f"outputs/image_{timestamp}.png"
     img.save(filename)
     return os.path.abspath(filename)
 
-@spaces.GPU
+# @spaces.GPU
 def run_showui(image, query):
     """Main function for inference."""
     image_path = array_to_image_path(image)
@@ -77,7 +68,8 @@ def run_showui(image, query):
             "role": "user",
             "content": [
                 {"type": "text", "text": _SYSTEM},
-                {"type": "image", "image": image_path, "min_pixels": MIN_PIXELS, "max_pixels": MAX_PIXELS},
+                {"type": "image", "image": image_path,
+                    "min_pixels": MIN_PIXELS, "max_pixels": MAX_PIXELS},
                 {"type": "text", "text": query}
             ],
         }
@@ -88,8 +80,8 @@ def run_showui(image, query):
     global model
 
     model = model.to("cuda")
-    
-    text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    text = processor.apply_chat_template(
+        messages, tokenize=False, add_generation_prompt=True)
     image_inputs, video_inputs = process_vision_info(messages)
     inputs = processor(
         text=[text],
@@ -136,6 +128,7 @@ def handle_vote(vote_type, image_path, query, action_generated):
     if image_path is None:
         return "No image uploaded. Please upload an image before voting."
     return record_vote(vote_type, image_path, query, action_generated)
+
 
 # Load logo and encode to Base64
 with open("./assets/showui.jpg", "rb") as image_file:
@@ -218,17 +211,21 @@ def build_demo(embed_mode, concurrency_count=1):
                 # Buttons for voting, flagging, regenerating, and clearing
                 with gr.Row(elem_id="action-buttons", equal_height=True):
                     vote_btn = gr.Button(value="👍 Vote", variant="secondary")
-                    downvote_btn = gr.Button(value="👎 Downvote", variant="secondary")
+                    downvote_btn = gr.Button(
+                        value="👎 Downvote", variant="secondary")
                     flag_btn = gr.Button(value="🚩 Flag", variant="secondary")
-                    regenerate_btn = gr.Button(value="🔄 Regenerate", variant="secondary")
-                    clear_btn = gr.Button(value="🗑️ Clear", interactive=True)  # Combined Clear button
+                    regenerate_btn = gr.Button(
+                        value="🔄 Regenerate", variant="secondary")
+                    # Combined Clear button
+                    clear_btn = gr.Button(value="🗑️ Clear", interactive=True)
 
             # Define button actions
             def on_submit(image, query):
                 """Handle the submit button click."""
                 if image is None:
-                    raise ValueError("No image provided. Please upload an image before submitting.")
-                
+                    raise ValueError(
+                        "No image provided. Please upload an image before submitting.")
+
                 # Generate consistent image path and store it in the state
                 image_path = array_to_image_path(image)
                 return run_showui(image, query) + (image_path,)
@@ -242,12 +239,14 @@ def build_demo(embed_mode, concurrency_count=1):
             clear_btn.click(
                 lambda: (None, None, None, None, None),
                 inputs=None,
-                outputs=[imagebox, textbox, output_img, output_coords, state_image_path],  # Clear all outputs
+                outputs=[imagebox, textbox, output_img, output_coords,
+                         state_image_path],  # Clear all outputs
                 queue=False
             )
 
             regenerate_btn.click(
-                lambda image, query, state_image_path: run_showui(image, query),
+                lambda image, query, state_image_path: run_showui(
+                    image, query),
                 [imagebox, textbox, state_image_path],
                 [output_img, output_coords],
             )
@@ -281,6 +280,8 @@ def build_demo(embed_mode, concurrency_count=1):
             )
 
     return demo
+
+
 # Launch the app
 if __name__ == "__main__":
     demo = build_demo(embed_mode=False)
