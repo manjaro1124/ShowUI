@@ -11,7 +11,6 @@ import ast
 import os
 from datetime import datetime
 import numpy as np
-from huggingface_hub import hf_hub_download, list_repo_files
 
 # Define constants
 DESCRIPTION = "[ShowUI Demo](https://huggingface.co/showlab/ShowUI-2B)"
@@ -23,7 +22,7 @@ MAX_PIXELS = 1344 * 28 * 28
 model = Qwen2VLForConditionalGeneration.from_pretrained(
     "./showlab/ShowUI-2B",
     torch_dtype=torch.bfloat16,
-    device_map="cpu",
+    device_map="auto",
 )
 
 # Load the processor
@@ -31,8 +30,6 @@ processor = AutoProcessor.from_pretrained(
     "Qwen/Qwen2-VL-2B-Instruct", min_pixels=MIN_PIXELS, max_pixels=MAX_PIXELS)
 
 # Helper functions
-
-
 def draw_point(image_input, point=None, radius=5):
     """Draw a point on the image."""
     if isinstance(image_input, str):
@@ -109,6 +106,8 @@ def run_showui(image, query):
     return result_image, str(click_xy)
 
 # Function to record votes
+
+
 def record_vote(vote_type, image_path, query, action_generated):
     """Record a vote in a JSON file."""
     vote_data = {
